@@ -1,3 +1,3 @@
-# lightcontroller
-gaeden light controller implemented on ESP8266
+# light controller
+garden light controller implemented on ESP8266
 
