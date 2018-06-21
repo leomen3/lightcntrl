@@ -1,2 +1,2 @@
-# sprinkler
-gaden light controller implemented on ESP8266
+# lightcontroller
+gaeden light controller implemented on ESP8266
