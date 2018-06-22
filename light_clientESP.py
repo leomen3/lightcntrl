@@ -14,31 +14,23 @@ from machine import RTC
 COMMANDS_PORT = 5640
 RPi_HOST = "10.0.0.5"
 DEEP_SLEEP_INTERVAL = 10  # second
-IRRIGATION_DURATION = 5 # seconds
 #TODO add time from RPi server when connection is possible
 
-def test2():
-    pass
-
-def toggleLED(p):
+def toggleGPIO(p):
     p.value(not p.value())
 
-
-def ledOn(p):
+def GPIO_On(p):
     p.value(0)
 
-
-def ledOff(p):
+def GPIO_Off(p):
     p.value(1)
 
+def lightOn():
+    GPIO_On(pinLED)
+    time.sleep(DEEP_SLEEP_INTERVAL)
 
-def irrigationStart():
-    ledOn(pinLED)
-    time.sleep(IRRIGATION_DURATION)
-
-
-def irrgationStop():
-    ledOff(pinLED)
+def lightOff():
+    ledOff(GPIO_light_cntrol)
 
 
 def initTime(hour=6, minute=7, second=8, day=18, month=7, year=1980):
@@ -113,7 +105,7 @@ def getState():
 
 
 #Generic Init
-pinLED = machine.Pin(2, machine.Pin.OUT)
+GPIO_light_cntrol = machine.Pin(2, machine.Pin.OUT)
 rtc = RTC()
 #netConnect()
 curr_tm = getDateTime()  #TODO need to do proper time setting here, from internet
