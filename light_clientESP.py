@@ -11,6 +11,8 @@ import time
 import machine
 from machine import RTC
 
+START_TIME = time.strptime('19:00', '%H:%M')
+END_TIME = time.strptime('06:00', '%H:%M')
 COMMANDS_PORT = 5640
 RPi_HOST = "10.0.0.5"
 DEEP_SLEEP_INTERVAL = 10  # second
@@ -32,7 +34,6 @@ def lightOn():
 def lightOff():
     ledOff(GPIO_light_cntrol)
 
-
 def initTime(hour=6, minute=7, second=8, day=18, month=7, year=1980):
     # The 8-tuple has the following format:
     #(year, month, day, weekday, hours, minutes, seconds, subseconds)
@@ -42,10 +43,8 @@ def initTime(hour=6, minute=7, second=8, day=18, month=7, year=1980):
                                         #a specific  date and time
     return None
 
-
 def getDateTime():
     return rtc.datetime()   # get date and time
-
 
 #Connect to home router
 def netConnect():
@@ -53,18 +52,12 @@ def netConnect():
     print('Establishing WiFi connection to home router')
     sta_if = network.WLAN(network.STA_IF)
     sta_if.active(True)
-    sta_if.connect('leonet', 'leo567567567')
+    sta_if.connect('leonet', 'leo567567567')  ##\TODO removice hardcoding of the login
     time.sleep(5.0)
-
-    # while not sta_if.isconnected():
-    #     pass
-
     print('Connected to network')
     print(sta_if.ifconfig())
-
-    #Disable AP interface
-    #ap_if.active(False)
     return None
+
 
 
 def reqCommands():
@@ -117,6 +110,14 @@ if str(current_year) != '2018':
 
 #TODO Add OTA bootloader
 
+def time_in_range(start, end, x):
+    """Return true if x is in the range [start, end]"""
+    if start <= end:
+        return start <= x <= end
+    else:
+        return start <= x or x <= end
+
+
 while True:
     
     # (1)attempt connecting to server to get status, commands and send log
@@ -135,14 +136,14 @@ while True:
 
     # check if irrigation is needed
     
-    # if needed, irrigate
-    print("Irrigation is needed -> Starting for ", IRRIGATION_DURATION, "[s]")
-    irrigationStart()
+    # if needed, turn on the light
+    if  time_in_range(START_TIME, END_TIME, curr_tm):
+        print("Light should be on -> Turning on ")
+        lightOn()
+    else:
+        lightOff()
     
-    # STOP irrigation TODO this code must be extra safe
-    # toggle OFF pin for testing
-    print("Stopping irrigaiton")
-    irrgationStop()
+
     curr_tm = getDateTime()
     
     # save state to RTC memory
