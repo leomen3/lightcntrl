@@ -19,7 +19,7 @@ if not DEBUG:
 START_TIME = time.strptime('19:00', '%H:%M')
 END_TIME = time.strptime('06:00', '%H:%M')
 COMMANDS_PORT = 5640
-RPi_HOST = "10.0.0.5"
+RPi_HOST = "10.0.0.17"
 DEEP_SLEEP_INTERVAL = 10  # second
 #TODO add time from RPi server when connection is possible
 
@@ -92,6 +92,30 @@ def sleepStart(sleepInterval):
         machine.deepsleep()
 
 
+def getRPiTime():
+    import socket
+    addr = socket.getaddrinfo(RPi_HOST, COMMANDS_PORT)[0][-1]
+    s = socket.socket()
+    print("Connecting to RPi: ", RPi_HOST)
+    try:
+    #TODO Something wrong here, the socket does not connect. \
+    # Important, after failed connection need to open a new socket.
+        s.connect(addr)
+        s.send("Ready")
+    except:
+        print("Error connecting to RPi server")
+    while True:
+        print("waiting for commad")
+        data = s.recv(100)
+        if data:
+            print('commad received')
+            print(str(data, 'utf8'), end='')
+        else:
+            break
+    s.close()
+    return None
+
+
 # def reqCommands():
 #     import socket
 #     addr = socket.getaddrinfo(RPi_HOST, COMMANDS_PORT)[0][-1]
@@ -153,55 +177,63 @@ def time_in_range(start, end, x):
         return start <= x or x <= end
 
 
-while True:
-    
-    # (1)attempt connecting to server to get status, commands and send log
-    
-    # (2) if successful, log and update configuration
-    curr_tm = getDateTime()
-    #time_rep = curr_tm
-    time_rep = str(curr_tm[0])+'-'+str(curr_tm[1])+'-'+str(curr_tm[2])+'->'+ \
-                 str(curr_tm[3])+':'+str(curr_tm[4])+':'+str(curr_tm[5])
-    #print(curr_tm)
-    print("Current time: ", time_rep)
-    
-    # Retrieve state from RTC memory
-    if not DEBUG:
-        state = getState()
-        print("Retrieved state (last irrigation ended): ", state)
+def main():
 
-    # check if lighting is needed - if needed, turn on the light
-    if time_in_range(START_TIME, END_TIME, curr_tm):
-        print("Light should be on -> Turning on ")
-        lightOn()
-    else:
-        lightOff()
+    while True:
+        # (1)attempt connecting to server to get status, commands and send log
+        
+        # (2) if successful, log and update configuration
+        curr_tm = getDateTime()
+        #time_rep = curr_tm
+        time_rep = str(curr_tm[0])+'-'+str(curr_tm[1])+'-'+str(curr_tm[2])+'->'+ \
+                    str(curr_tm[3])+':'+str(curr_tm[4])+':'+str(curr_tm[5])
+        #print(curr_tm)
+        print("Current time: ", time_rep)
+        
+        # Retrieve state from RTC memory
+        if not DEBUG:
+            state = getState()
+            print("Retrieved state (last irrigation ended): ", state)
 
-    curr_tm = getDateTime()
+        # check if lighting is needed - if needed, turn on the light
+        if time_in_range(START_TIME, END_TIME, curr_tm):
+            print("Light should be on -> Turning on ")
+            lightOn()
+        else:
+            lightOff()
+
+        curr_tm = getDateTime()
+        
+        # save state to RTC memory
+        if not DEBUG:
+            print("Saving state")
+            saveState(str(curr_tm))
+        
+        # safety sleep to allow multitasking between ESP core and WiFI
+        print("10 seconds sleep before DEEP SLEEP")
+        time.sleep(10)
+        
+        # go to DEEP SLEEP 
+        # configure RTC.ALARM0 to be able to wake the device
+        if not DEBUG:
+            print("Configure trigger")
+            rtc.irq(trigger=rtc.ALARM0, wake=machine.DEEPSLEEP)
+
+        # set RTC.ALARM0 to fire after DEEP_SLEEP_INTERVAL  (waking the device)
+        sleep_ms = DEEP_SLEEP_INTERVAL*1000
+        if not DEBUG:
+            print("set alarm")
+            rtc.alarm(rtc.ALARM0, sleep_ms)
+
+        # put the device to sleep
+        print("going to sleep for: ", DEEP_SLEEP_INTERVAL, "seconds") 
+        sleepStart(DEEP_SLEEP_INTERVAL)
+
+        #LOG
+
+if DEBUG:
+    if __name__ == "__main__":
+        main() 
+else:
+    main()
     
-    # save state to RTC memory
-    if not DEBUG:
-        print("Saving state")
-        saveState(str(curr_tm))
-    
-    # safety sleep to allow multitasking between ESP core and WiFI
-    print("10 seconds sleep before DEEP SLEEP")
-    time.sleep(10)
-    
-    # go to DEEP SLEEP 
-    # configure RTC.ALARM0 to be able to wake the device
-    if not DEBUG:
-        print("Configure trigger")
-        rtc.irq(trigger=rtc.ALARM0, wake=machine.DEEPSLEEP)
-
-    # set RTC.ALARM0 to fire after DEEP_SLEEP_INTERVAL  (waking the device)
-    sleep_ms = DEEP_SLEEP_INTERVAL*1000
-    if not DEBUG:
-        print("set alarm")
-        rtc.alarm(rtc.ALARM0, sleep_ms)
-
-    # put the device to sleep
-    print("going to sleep for: ", DEEP_SLEEP_INTERVAL, "seconds") 
-    sleepStart(DEEP_SLEEP_INTERVAL)
-
-    #LOG
