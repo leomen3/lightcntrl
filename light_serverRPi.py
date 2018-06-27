@@ -15,18 +15,24 @@ s.connect(('8.8.8.8', 1))  # connect() for UDP doesn't send packets
 local_ip_address = s.getsockname()[0]
 
 # bind to the port
-serversocket.bind((host, port))     
+serversocket.bind(('', port))     
 print("Host IP:", local_ip_address, " listening on port: ", port)
 print("Waiting for connection")                             
 
 # queue up to 5 requests
-serversocket.listen(1)                                           
+serversocket.listen(1)
 
 while True:
     # establish a connection
-    clientsocket, addr = serversocket.accept()      
+    conn, addr = serversocket.accept()      
 
     print("Got a connection from %s" % str(addr))
-    currentTime = time.ctime(time.time()) + "\r\n"
-    clientsocket.send(currentTime.encode('ascii'))
-    clientsocket.close()
+    data = conn.recv(1024)
+    if data:
+        payload = data.decode("utf8")
+        print("Got command: "+payload)
+    if payload == "time":
+        currentTime = time.ctime(time.time()) + "\r\n"
+        conn.send(currentTime.encode('utf8'))
+        print('Sending: '+currentTime)
+    conn.close()

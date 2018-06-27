@@ -18,7 +18,7 @@ if not DEBUG:
 
 START_TIME = time.strptime('19:00', '%H:%M')
 END_TIME = time.strptime('06:00', '%H:%M')
-COMMANDS_PORT = 5640
+COMMANDS_PORT = 5641
 RPi_HOST = "10.0.0.17"
 DEEP_SLEEP_INTERVAL = 10  # second
 #TODO add time from RPi server when connection is possible
@@ -101,17 +101,21 @@ def getRPiTime():
     #TODO Something wrong here, the socket does not connect. \
     # Important, after failed connection need to open a new socket.
         s.connect(addr)
-        s.send("Ready")
     except:
         print("Error connecting to RPi server")
-    while True:
-        print("waiting for commad")
-        data = s.recv(100)
-        if data:
-            print('commad received')
-            print(str(data, 'utf8'), end='')
-        else:
-            break
+        s.close()
+        return None
+
+    if DEBUG: 
+        print("Handshaking with RPi")
+    s.send("time".encode("utf8"))
+    time.sleep(3)
+    data = s.recv(1024)
+    payload = data.decode("utf8")
+    if data:
+        print('commad received: '+ payload)
+    else:
+        print('No data received')
     s.close()
     return None
 
@@ -181,6 +185,7 @@ def main():
 
     while True:
         # (1)attempt connecting to server to get status, commands and send log
+        getRPiTime()
         
         # (2) if successful, log and update configuration
         curr_tm = getDateTime()
