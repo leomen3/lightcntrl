@@ -9,7 +9,7 @@
 ###########################################################################
 import time
 
-DEBUG = True
+DEBUG = False
 
 if not DEBUG:
     import machine
@@ -69,20 +69,20 @@ def getDateTime():
 
 
 #Connect to home router
-def netConnect():
-    if DEBUG:
-        pass
-        return None
-    else:
-        import network
-        print('Establishing WiFi connection to home router')
-        sta_if = network.WLAN(network.STA_IF)
-        sta_if.active(True)
-        sta_if.connect('leonet', 'leo567567567')  ##\TODO removice hardcoding of the login
-        time.sleep(5.0)
-        print('Connected to network')
-        print(sta_if.ifconfig())
-        return None
+# def netConnect():
+#     if DEBUG:
+#         pass
+#         return None
+#     else:
+#         import network
+#         print('Establishing WiFi connection to home router')
+#         sta_if = network.WLAN(network.STA_IF)
+#         sta_if.active(True)
+#         sta_if.connect(TBD')  ##\TODO removice hardcoding of the login
+#         time.sleep(5.0)
+#         print('Connected to network')
+#         print(sta_if.ifconfig())
+#         return None
 
 
 def sleepStart(sleepInterval):
@@ -162,7 +162,7 @@ if not DEBUG:
     GPIO_light_cntrl = machine.Pin(2, machine.Pin.OUT)
     rtc = RTC()
 
-netConnect()
+#netConnect()
 curr_tm = getDateTime()  #TODO need to do proper time setting here, from internet
 current_year = str(curr_tm[0])
 print("current year: ", current_year)
@@ -240,5 +240,6 @@ if DEBUG:
     if __name__ == "__main__":
         main() 
 else:
-    main()
+    pass
+    #main()
     
