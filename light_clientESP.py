@@ -8,6 +8,12 @@
 # 4) otherwise, go to sleep mode for SLEEP interval
 ###########################################################################
 
+
+#TODO if NTPTIME fails, the program fails. 
+# Need to check of rtc time is available - run from it. 
+# If not, go to sleep for some INTENVAL, and after wake,
+#  it will try again.
+
 DEBUG = False
 
 if not DEBUG:
@@ -160,7 +166,6 @@ def main():
         # set RTC.ALARM0 to fire after DEEP_SLEEP_INTERVAL  (waking the device)
         sleep_ms = DEEP_SLEEP_INTERVAL*1000
         if not DEBUG:
-            print("set alarm")
             rtc.alarm(rtc.ALARM0, sleep_ms)
 
         # put the device to sleep
