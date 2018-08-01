@@ -8,18 +8,13 @@
 # 4) otherwise, go to sleep mode for SLEEP interval
 ###########################################################################
 
-
-#TODO if NTPTIME fails, the program fails. 
-# Need to check of rtc time is available - run from it. 
-# If not, go to sleep for some INTENVAL, and after wake,
-#  it will try again.
-
 DEBUG = False
 
 if not DEBUG:
     import machine
     import utime
     import ntptime
+    import network
 else:
     import time
 
@@ -37,17 +32,16 @@ def toggleGPIO(p):
 
 
 def GPIO_On(p):
-    p.value(0)
+    p.value(1)
 
 
 def GPIO_Off(p):
-    p.value(1)
+    p.value(0)
 
 
 def lightOn():
     if not DEBUG:
         GPIO_On(GPIO_light_cntrl)
-        utime.sleep(DEEP_SLEEP_INTERVAL)
     else:
         print("Issue light ON command")
 
@@ -63,16 +57,42 @@ def getDateTime():
     if DEBUG:
         return time.localtime()
     else:
-        ntptime.settime()
+        utime.sleep(5)  # Sleep for 5 seconds, to make sure WiFi is connected
+        if sta_if.isconnected():
+            print("Connected to internet, setting time from NTP")
+            ntptime.settime()
         t = rtc.datetime()
-        return t     
+        print("RTC time is: ", t)
+        year = t[0]
+        print("year is: ",year)
+        gotTime = year > 2016
+        if gotTime:
+            print(t)
+        else:
+            print("Could not get time")
+        return gotTime, t 
 
-def sleepStart(sleepInterval):
+        
+def sleepStart():
+    """ set RTC.ALARM0 to fire after DEEP_SLEEP_INTERVAL seconds
+    put the ESP8266 to deep sleep """
+    print("going to sleep for: ", DEEP_SLEEP_INTERVAL, "seconds") 
     if DEBUG:
-        time.sleep(sleepInterval)
+        time.sleep(DEEP_SLEEP_INTERVAL)
     else:
+        rtc.irq(trigger=rtc.ALARM0, wake=machine.DEEPSLEEP)
+        rtc.alarm(rtc.ALARM0, DEEP_SLEEP_INTERVAL*1000)
         machine.deepsleep()
 
+
+def batteryCharged():
+    """ read the ADC value from the battery output, and convert to 
+    volts"""
+    pass
+    adc = machine.ADC(0)  #   return value 0 to 1023
+    adcVal = adc.read()
+    volts = adcVal/1023*5 #   assuming 1:5 voltage divider
+    #return charged, volts
 
 def getRPiTime():
     import socket
@@ -114,12 +134,6 @@ def getState():
     return rtc.memory()
 
 
-#Generic Init
-if not DEBUG:
-    GPIO_light_cntrl = machine.Pin(2, machine.Pin.OUT)
-    rtc = machine.RTC()
-
-
 def time_in_range(start, end, utc_time_hour):
     """Return true if x is in the range [start, end]"""
     x = (utc_time_hour + 3) % 24
@@ -131,22 +145,20 @@ def time_in_range(start, end, utc_time_hour):
 
 
 def main():
+    GPIO_On(GPIO_light_cntrl)
+    utime.sleep(3)
+    GPIO_Off(GPIO_light_cntrl)
+    utime.sleep(6)
+    GPIO_On(GPIO_light_cntrl)
+    utime.sleep(3)
+    GPIO_Off(GPIO_light_cntrl)
+    utime.sleep(6)
 
     while True:
-        # (1)attempt connecting to server to get status, commands and send log
-        #getRPiTime()
-        
-        # (2) if successful, log and update configuration
-        curr_tm = getDateTime()
-        print(curr_tm)
-
- #       time_rep = str(curr_tm[0])+'-'+str(curr_tm[1])+'-'+str(curr_tm[2])+'->' + \
- #                         str(curr_tm[3])+':'+str(curr_tm[4])+':'+str(curr_tm[5])
- #       print("Current time: ", time_rep)
-        
+        gotTime, curr_tm = getDateTime()  # get time 
 
         # check if lighting is needed - if needed, turn on the light
-        if time_in_range(START_TIME, END_TIME, curr_tm[4]):
+        if gotTime and time_in_range(START_TIME, END_TIME, curr_tm[4]):
             print("Light should be ON -> Turning ON ")
             lightOn()
         else:
@@ -156,21 +168,13 @@ def main():
         # safety sleep to allow multitasking between ESP core and WiFI
         print("10 seconds sleep before DEEP SLEEP")
         utime.sleep(10)
-        
-        # go to DEEP SLEEP 
-        # configure RTC.ALARM0 to be able to wake the device
-        if not DEBUG:
-            print("Configure trigger")
-            rtc.irq(trigger=rtc.ALARM0, wake=machine.DEEPSLEEP)
+        sleepStart()   # put the device to sleep
 
-        # set RTC.ALARM0 to fire after DEEP_SLEEP_INTERVAL  (waking the device)
-        sleep_ms = DEEP_SLEEP_INTERVAL*1000
-        if not DEBUG:
-            rtc.alarm(rtc.ALARM0, sleep_ms)
-
-        # put the device to sleep
-        print("going to sleep for: ", DEEP_SLEEP_INTERVAL, "seconds") 
-        sleepStart(DEEP_SLEEP_INTERVAL)
+#Generic Init
+if not DEBUG:
+    GPIO_light_cntrl = machine.Pin(4, machine.Pin.OUT)
+    rtc = machine.RTC()
+    sta_if = network.WLAN(network.STA_IF)
 
 if DEBUG:
     if __name__ == "__main__":
@@ -178,3 +182,7 @@ if DEBUG:
 else:
     main()
     
+
+#TODO
+# Add logging
+# Add ADC reading
