@@ -15,16 +15,17 @@ if not DEBUG:
     import utime
     import ntptime
     import network
+    import esp
 else:
     import time
 
 
-UTC_OFFSET = 3
-START_TIME = 20
-END_TIME = 6
+UTC_OFFSET = 3   # hours
+START_TIME = 20  # 24h round hour
+END_TIME = 6     # 24h round hour
 COMMANDS_PORT = 5641
 RPi_HOST = "10.0.0.17"
-DEEP_SLEEP_INTERVAL = 1  # second
+SLEEP_INTERVAL = 1800  # second
 
 
 def toggleGPIO(p):
@@ -54,6 +55,7 @@ def lightOff():
 
 
 def getDateTime():
+    gotTime = False
     if DEBUG:
         return time.localtime()
     else:
@@ -70,18 +72,20 @@ def getDateTime():
             print(t)
         else:
             print("Could not get time")
+            machine.reset()
         return gotTime, t 
 
         
 def sleepStart():
-    """ set RTC.ALARM0 to fire after DEEP_SLEEP_INTERVAL seconds
+    """ set RTC.ALARM0 to fire after SLEEP_INTERVAL seconds
     put the ESP8266 to deep sleep """
-    print("going to sleep for: ", DEEP_SLEEP_INTERVAL, "seconds") 
+    print("going to sleep for: ", SLEEP_INTERVAL, "seconds") 
     if DEBUG:
-        time.sleep(DEEP_SLEEP_INTERVAL)
+        time.sleep(SLEEP_INTERVAL)
     else:
+        print("Now going to DEEP sleep for: ", SLEEP_INTERVAL, " seconds")
         rtc.irq(trigger=rtc.ALARM0, wake=machine.DEEPSLEEP)
-        rtc.alarm(rtc.ALARM0, DEEP_SLEEP_INTERVAL*1000)
+        rtc.alarm(rtc.ALARM0, SLEEP_INTERVAL*1000)
         machine.deepsleep()
 
 
@@ -145,14 +149,6 @@ def time_in_range(start, end, utc_time_hour):
 
 
 def main():
-    GPIO_On(GPIO_light_cntrl)
-    utime.sleep(3)
-    GPIO_Off(GPIO_light_cntrl)
-    utime.sleep(6)
-    GPIO_On(GPIO_light_cntrl)
-    utime.sleep(3)
-    GPIO_Off(GPIO_light_cntrl)
-    utime.sleep(6)
 
     while True:
         gotTime, curr_tm = getDateTime()  # get time 
@@ -161,14 +157,19 @@ def main():
         if gotTime and time_in_range(START_TIME, END_TIME, curr_tm[4]):
             print("Light should be ON -> Turning ON ")
             lightOn()
+            print("Now waiting to load new file for 30 seconds ")
+            utime.sleep(30)
+            print("Now going to light sleep for: ", SLEEP_INTERVAL, " seconds")
+            esp.sleep_type(esp.SLEEP_LIGHT)
+            utime.sleep(SLEEP_INTERVAL)
         else:
             print("Light should be OFF -> Turning OFF ")
             lightOff()
 
-        # safety sleep to allow multitasking between ESP core and WiFI
-        print("10 seconds sleep before DEEP SLEEP")
-        utime.sleep(10)
-        sleepStart()   # put the device to sleep
+            # safety sleep to allow multitasking between ESP core and WiFI
+            print("5 seconds sleep before DEEP SLEEP")
+            utime.sleep(5)
+            sleepStart()   # put the device to sleep
 
 #Generic Init
 if not DEBUG:
